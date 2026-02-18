@@ -38,6 +38,7 @@ export interface PresenceUser {
 export function usePresence(boardId: string, userId: string, userName: string) {
   const [cursors, setCursors] = useState<Map<string, CursorPosition>>(new Map())
   const [onlineUsers, setOnlineUsers] = useState<PresenceUser[]>([])
+  const [connected, setConnected] = useState(false)
   const channelRef = useRef<RealtimeChannel | null>(null)
   const cleanupTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const supabaseRef = useRef(createClient())
@@ -118,6 +119,7 @@ export function usePresence(boardId: string, userId: string, userName: string) {
     channel.subscribe(async (status, err) => {
       console.log('[usePresence] Channel status:', status, err ?? '')
       if (status === 'SUBSCRIBED') {
+        setConnected(true)
         console.log('[usePresence] SUBSCRIBED — tracking presence')
         const trackResult = await channel.track({
           userId,
@@ -126,6 +128,8 @@ export function usePresence(boardId: string, userId: string, userName: string) {
           onlineAt: new Date().toISOString(),
         })
         console.log('[usePresence] Track result:', trackResult)
+      } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') {
+        setConnected(false)
       }
     })
 
@@ -164,5 +168,5 @@ export function usePresence(boardId: string, userId: string, userName: string) {
     [userId, userName, userColor]
   )
 
-  return { cursors, onlineUsers, broadcastCursor, userColor }
+  return { cursors, onlineUsers, broadcastCursor, userColor, connected }
 }

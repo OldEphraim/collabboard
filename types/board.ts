@@ -55,4 +55,18 @@ export interface ConnectorProperties {
   toId: string
   stroke?: string
   strokeWidth?: number
+  style?: 'arrow' | 'line'
+}
+
+export interface LineProperties {
+  stroke?: string
+  strokeWidth?: number
+  points: number[] // [0, 0, endX, endY] relative to object x,y
+}
+
+export interface FrameProperties {
+  title?: string
+  fill?: string
+  stroke?: string
+  strokeWidth?: number
 }

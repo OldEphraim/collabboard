@@ -10,12 +10,14 @@ const DRAG_THROTTLE_MS = 50
 export function useBoard(boardId: string) {
   const [objects, setObjects] = useState<BoardObject[]>([])
   const [loading, setLoading] = useState(true)
+  const [connected, setConnected] = useState(false)
   const supabaseRef = useRef(createClient())
   const supabase = supabaseRef.current
   const channelRef = useRef<RealtimeChannel | null>(null)
   const cleanupTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const lastDragBroadcast = useRef(0)
   const zIndexCounter = useRef(0)
+  const hasBeenConnected = useRef(false)
 
   // Load objects on mount
   useEffect(() => {
@@ -104,8 +106,30 @@ export function useBoard(boardId: string) {
         setObjects((prev) => prev.filter((obj) => obj.id !== id))
       })
 
-    channel.subscribe((status, err) => {
+    channel.subscribe(async (status, err) => {
       console.log('[useBoard] Subscription status:', status, err ?? '')
+      if (status === 'SUBSCRIBED') {
+        setConnected(true)
+        // On reconnect, reload objects from DB to catch any missed changes
+        if (hasBeenConnected.current) {
+          console.log('[useBoard] Reconnected — reloading objects from DB')
+          const { data } = await supabase
+            .from('board_objects')
+            .select('*')
+            .eq('board_id', boardId)
+            .order('z_index', { ascending: true })
+          if (data) {
+            setObjects(data as BoardObject[])
+            zIndexCounter.current = data.reduce(
+              (max, o) => Math.max(max, (o as BoardObject).z_index ?? 0),
+              0
+            )
+          }
+        }
+        hasBeenConnected.current = true
+      } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') {
+        setConnected(false)
+      }
     })
 
     channelRef.current = channel
@@ -235,5 +259,46 @@ export function useBoard(boardId: string) {
     [supabase]
   )
 
-  return { objects, loading, createObject, updateObject, deleteObject, broadcastObjectMove }
+  // Apply results returned from the AI command API.
+  // The API already wrote to Supabase, so we only need to update local state
+  // and broadcast to other connected clients.
+  const applyAiResults = useCallback(
+    (results: { action: 'create' | 'update' | 'delete'; object: BoardObject }[]) => {
+      for (const { action, object: obj } of results) {
+        if (action === 'create') {
+          if (obj.z_index > zIndexCounter.current) {
+            zIndexCounter.current = obj.z_index
+          }
+          setObjects((prev) => {
+            if (prev.some((o) => o.id === obj.id)) return prev
+            return [...prev, obj]
+          })
+          channelRef.current?.send({
+            type: 'broadcast',
+            event: 'object-create',
+            payload: obj,
+          })
+        } else if (action === 'update') {
+          setObjects((prev) =>
+            prev.map((o) => (o.id === obj.id ? { ...o, ...obj } : o))
+          )
+          channelRef.current?.send({
+            type: 'broadcast',
+            event: 'object-update',
+            payload: obj,
+          })
+        } else if (action === 'delete') {
+          setObjects((prev) => prev.filter((o) => o.id !== obj.id))
+          channelRef.current?.send({
+            type: 'broadcast',
+            event: 'object-delete',
+            payload: { id: obj.id },
+          })
+        }
+      }
+    },
+    []
+  )
+
+  return { objects, loading, connected, createObject, updateObject, deleteObject, broadcastObjectMove, applyAiResults }
 }

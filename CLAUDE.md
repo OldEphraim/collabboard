@@ -119,25 +119,23 @@ collabboard/
     migrations/           — SQL migrations
 ```
 
-## MVP Requirements (HARD GATE — 24 hours)
+## MVP Requirements (HARD GATE — 24 hours) ✅ PASSED
 
-ALL of these must work or the project fails. See Phase 4 checklist for verification.
+All items verified and working on deployed URL.
 
-- [ ] Infinite board with pan/zoom
-- [ ] Sticky notes with editable text
-- [ ] At least one shape type (rectangle)
-- [ ] Create, move, and edit objects
-- [ ] Real-time sync between 2+ users
-- [ ] Multiplayer cursors with name labels
-- [ ] Presence awareness (who's online)
-- [ ] User authentication (email/password)
-- [ ] Deployed and publicly accessible
-
-**A simple whiteboard with bulletproof multiplayer beats a feature-rich board with broken sync.**
+- [x] Infinite board with pan/zoom
+- [x] Sticky notes with editable text
+- [x] At least one shape type (rectangle)
+- [x] Create, move, and edit objects
+- [x] Real-time sync between 2+ users
+- [x] Multiplayer cursors with name labels
+- [x] Presence awareness (who's online)
+- [x] User authentication (email/password)
+- [x] Deployed and publicly accessible
 
 ## Build Order (FOLLOW THIS EXACTLY)
 
-### ═══ MVP SCOPE (Phases 1-4) — SUBMIT BEFORE MOVING ON ═══
+### ═══ MVP SCOPE (Phases 1-4) — ✅ COMPLETE, MVP SUBMITTED ═══
 
 ### Phase 1: Foundation (Hours 0-3)
 1. ~~`npx create-next-app` — ALREADY DONE~~
@@ -176,27 +174,93 @@ ALL of these must work or the project fails. See Phase 4 checklist for verificat
 2. Deploy to Vercel (connect repo)
 3. Set environment variables (Supabase URL, anon key, service role key)
 4. Configure auth redirect URLs for production domain
-5. **MVP CHECKLIST — verify ALL of these on the deployed URL:**
-   - [ ] Infinite board with pan/zoom
-   - [ ] Sticky notes with editable text
-   - [ ] At least one shape type (rectangle)
-   - [ ] Create, move, and edit objects
-   - [ ] Real-time sync between 2+ users (test in 2 browsers)
-   - [ ] Multiplayer cursors with name labels
-   - [ ] Presence awareness (who's online)
-   - [ ] User authentication (signup + login)
-   - [ ] Deployed and publicly accessible
-6. **STOP. Submit MVP. Then continue to Phase 5.**
+5. **MVP CHECKLIST — ✅ ALL VERIFIED ON DEPLOYED URL:**
+   - [x] Infinite board with pan/zoom
+   - [x] Sticky notes with editable text
+   - [x] At least one shape type (rectangle)
+   - [x] Create, move, and edit objects
+   - [x] Real-time sync between 2+ users (test in 2 browsers)
+   - [x] Multiplayer cursors with name labels
+   - [x] Presence awareness (who's online)
+   - [x] User authentication (signup + login + logout)
+   - [x] Deployed and publicly accessible at collabboard-black.vercel.app
+6. ~~STOP. Submit MVP.~~ ✅ MVP submitted.
 
-### ═══ POST-MVP (Phase 5+) — only after MVP is submitted ═══
+### ═══ POST-MVP (Phases 5-8) — MVP submitted, 79 hours remain ═══
 
-### Phase 5: AI Agent (Hours 16-24)
-1. Define tool schemas in `lib/ai/tools.ts`
-2. Build `/api/ai-command` route: receives text, calls Anthropic with tools, executes results
-3. Implement tools: createStickyNote, createShape, moveObject, updateText, changeColor, getBoardState
-4. Build AiChat component (text input + response display)
-5. Test: "Create a yellow sticky note that says Hello" → sticky note appears for all users
-6. Add complex commands: "Create a SWOT analysis" (multi-step)
+### Phase 5: Extended Board Features ✅ COMPLETE
+Priority: High — these are in the grading rubric
+
+### Phase 6: AI Agent ✅ COMPLETE
+Priority: High — required for submission, 6+ command types across 4 categories
+
+### Phase 7: Remaining Hard Requirements
+Priority: CRITICAL — these are graded and not yet done
+
+1. **Disconnect/reconnect handling:** Detect lost WebSocket, show "Reconnecting..." indicator, auto-rejoin Broadcast channel on reconnect. Test by disabling network in DevTools briefly, then re-enabling.
+2. **Document conflict resolution approach:** Add a visible note somewhere in the app or README explaining our last-write-wins strategy for simultaneous edits. The spec says "last-write-wins acceptable, document your approach."
+3. **GitHub README:** Must include: setup guide (clone, install, env vars, run), architecture overview (stack, sync approach, AI agent design), deployed link (collabboard-black.vercel.app), screenshots of the board in action.
+4. **Verify and harden AI commands:** Test these specific commands and fix if they don't produce good results:
+   - Layout: "Arrange these sticky notes in a grid" / "Space these elements evenly"
+   - Complex: "Create a SWOT analysis template with four quadrants"
+   - Complex: "Build a user journey map with 5 stages"
+   - Complex: "Set up a retrospective board with What Went Well, What Didn't, and Action Items"
+   - If any of these fail or produce poor layouts, improve the system prompt or tool definitions
+5. **Push to Vercel and verify:** All changes must be deployed and working on production URL
+
+### Phase 8: Testing & Verification
+Priority: HIGH — evaluators will run these exact scenarios
+
+Run and document results for ALL of these:
+
+**Spec Testing Scenarios (evaluators will use these):**
+1. 2 users editing simultaneously in different browsers
+2. One user refreshing mid-edit (state persistence check)
+3. Rapid creation and movement of sticky notes and shapes (sync performance)
+4. Network throttling and disconnection recovery (Chrome DevTools → Network → Slow 3G)
+5. 5+ concurrent users without degradation (open 5+ browser tabs/windows)
+
+**AI Agent Testing:**
+6. Test all 4 command categories (creation, manipulation, layout, complex)
+7. Measure response latency — must be <2s for single-step commands
+8. Two users issuing AI commands simultaneously
+9. Verify AI-created objects appear for all connected users
+
+**Performance Spot-Checks:**
+10. 60 FPS during pan/zoom (Chrome DevTools Performance tab)
+11. Create 50+ objects rapidly — does sync hold up?
+
+Fix any failures found during testing before moving on.
+
+### Phase 9: Polish (time permitting)
+Priority: Medium — improves grade but not required
+
+1. Fix hydration warnings from Phase 1
+2. Transform handles only visible on selected objects
+3. Next.js middleware → proxy rename (deprecation warning)
+4. Error handling: user-facing messages for failed operations
+5. Loading states: skeleton/spinner while board loads
+6. Viewport persistence (save camera position per board)
+7. Mobile touch support (nice-to-have)
+
+### Phase 10: Submission Deliverables (Alan does these, Claude Code helps with README)
+Priority: CRITICAL — required for submission by Sunday 10:59 PM CT
+
+1. ✅ GitHub README — created in Phase 7 by Claude Code
+2. **Demo Video (3-5 min) — Alan records:** Show real-time collab between 2+ users, AI commands, explain architecture. Use Loom or similar.
+3. **AI Development Log (1 page) — Alan writes with Claude help:**
+   - Tools & Workflow (Claude Code + claude.ai, dual-window workflow)
+   - MCP Usage (if any)
+   - 3-5 effective prompts (include actual prompts)
+   - Code analysis (rough % AI-generated vs hand-written)
+   - Strengths & limitations (Realtime debugging was hard for AI, canvas code was easy)
+   - Key learnings
+4. **AI Cost Analysis — Alan writes with Claude help:**
+   - Development costs: Anthropic API spend, Claude Max subscription, tokens consumed
+   - Production projections at 100 / 1,000 / 10,000 / 100,000 users/month
+   - Assumptions documented
+5. **Social Post — Alan publishes:** X or LinkedIn, description + features + demo/screenshots, tag @GauntletAI
+6. **Final deploy:** Push everything, verify production URL one last time
 
 ## Performance Targets
 
@@ -210,40 +274,48 @@ ALL of these must work or the project fails. See Phase 4 checklist for verificat
 
 ## Key Patterns
 
-### Supabase Realtime subscription (object sync)
-```typescript
-supabase
-  .channel('board-objects')
-  .on('postgres_changes', {
-    event: '*',
-    schema: 'public',
-    table: 'board_objects',
-    filter: `board_id=eq.${boardId}`
-  }, (payload) => {
-    // Handle INSERT, UPDATE, DELETE
-  })
-  .subscribe()
-```
+### IMPORTANT: Actual sync architecture (differs from original plan)
+We use **Broadcast for ALL sync** — both objects and cursors. postgres_changes had issues with
+Supabase Realtime filtering. The working pattern is:
 
-### Supabase Broadcast (cursor sync)
+- **Object CRUD:** Write to DB → Broadcast the change → other clients apply it
+- **Cursor sync:** Broadcast only (ephemeral, no DB)
+- **Presence:** Supabase Presence API on the Broadcast channel
+- **Channel config:** `{ broadcast: { self: false } }` so sender doesn't receive own events
+- **StrictMode handling:** Deferred cleanup pattern (200ms setTimeout) to survive React 18 double-invoke
+
+### Supabase Broadcast (object + cursor sync)
 ```typescript
-const channel = supabase.channel(`board-${boardId}`)
+const channel = supabase.channel(`board-${boardId}`, {
+  config: { broadcast: { self: false } }
+})
 channel
-  .on('broadcast', { event: 'cursor' }, ({ payload }) => {
-    // Update other user's cursor position
-  })
-  .on('presence', { event: 'sync' }, () => {
-    // Update online users list
-  })
+  .on('broadcast', { event: 'object-create' }, ({ payload }) => { /* add to state */ })
+  .on('broadcast', { event: 'object-update' }, ({ payload }) => { /* update state */ })
+  .on('broadcast', { event: 'object-delete' }, ({ payload }) => { /* remove from state */ })
+  .on('broadcast', { event: 'object-move' }, ({ payload }) => { /* live drag position */ })
+  .on('broadcast', { event: 'cursor' }, ({ payload }) => { /* update cursor */ })
+  .on('presence', { event: 'sync' }, () => { /* update online users */ })
   .subscribe(async (status) => {
     if (status === 'SUBSCRIBED') {
       await channel.track({ user_id, name, color })
     }
   })
-
-// Send cursor position (throttled)
-channel.send({ type: 'broadcast', event: 'cursor', payload: { x, y, user_id, name } })
 ```
+
+## Lessons Learned During MVP (read before making changes)
+
+1. **postgres_changes doesn't work reliably** with our Supabase setup. We tried REPLICA IDENTITY FULL, verified the publication, tested both key formats — channels never received events. **Use Broadcast for all sync.** DB writes still happen for persistence, but real-time delivery goes through Broadcast.
+
+2. **React 18 Strict Mode double-invokes effects** in development. This kills WebSocket connections before they establish. The fix is a deferred cleanup pattern: schedule cleanup with setTimeout(200ms), cancel it if the effect remounts. Both useBoard and usePresence use this pattern — **do not remove it.**
+
+3. **Konva intercepts pointer events** on its canvas. To get continuous cursor tracking (not just on click), use `window.addEventListener('pointermove')` with bounds checking, not React onMouseMove or Konva onPointerMove.
+
+4. **z_index overflow:** Don't use `Date.now()` for z_index — it exceeds PostgreSQL INTEGER max. Use an incrementing counter based on max existing z_index.
+
+5. **Konva drag vs click:** Set `dragDistance={5}` on draggable components so double-clicks with slight jitter aren't swallowed as drag starts.
+
+6. **Supabase auth email rate limits:** Email confirmation is disabled (Supabase free tier limits to ~3-4 confirmation emails/hour). Users sign up and are immediately active.
 
 ## Environment Variables
 

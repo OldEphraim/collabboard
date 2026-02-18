@@ -15,5 +15,5 @@ export default async function Home() {
     .select('*')
     .order('created_at', { ascending: false })
 
-  return <Dashboard boards={boards ?? []} userEmail={user.email ?? ''} />
+  return <Dashboard boards={boards ?? []} userEmail={user.email ?? ''} userId={user.id} />
 }
