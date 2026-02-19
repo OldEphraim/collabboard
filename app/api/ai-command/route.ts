@@ -406,8 +406,8 @@ export async function POST(request: Request) {
 
     // Tool use loop — Claude may call multiple tools across multiple turns
     let response = await anthropic.messages.create({
-      model: 'claude-sonnet-4-5-20250929',
-      max_tokens: 4096,
+      model: 'claude-haiku-4-5-20251001',
+      max_tokens: 2048,
       system: systemPrompt,
       messages,
       tools: toolDefinitions,
