@@ -11,66 +11,72 @@ interface AiResult {
   object: BoardObject
 }
 
-// Summarise the board for Claude's system prompt
-function buildSystemPrompt(objects: BoardObject[]): string {
-  const summary = objects
+// Detect whether a command needs multi-step tool use (templates, layouts, etc.)
+const COMPLEX_PATTERN = /swot|journey|retrospective|retro\b|template|analysis|kanban|brainstorm|arrange|layout|grid|organize|roadmap|mindmap|mind map|flowchart/i
+
+function isComplexCommand(text: string): boolean {
+  return COMPLEX_PATTERN.test(text)
+}
+
+// Build a board-state summary string
+function boardStateSummary(objects: BoardObject[]): string {
+  if (objects.length === 0) return '(empty board)'
+  return objects
     .map(
       (o) =>
         `- [${o.type}] id="${o.id}" at (${Math.round(o.x)}, ${Math.round(o.y)}) ${o.width}x${o.height} properties=${JSON.stringify(o.properties)}`
     )
     .join('\n')
+}
 
-  return `You are an AI assistant for CollabBoard, a collaborative whiteboard application.
+const BASE_SYSTEM_PROMPT = `You are an AI assistant for CollabBoard, a collaborative whiteboard application.
 You help users create, modify, and arrange objects on the board using the provided tools.
 
 BOARD COORDINATE SYSTEM:
-- (0, 0) is the top-left corner
-- X increases to the right, Y increases downward
-- A typical viewport is about 1200x800 pixels
-- Center of a default viewport is approximately (600, 400)
+- (0, 0) is the top-left corner. X increases right, Y increases down.
+- Typical viewport: ~1200x800 pixels, center ~(600, 400).
 
-OBJECT DIMENSIONS:
-- Sticky notes: 200x200 pixels (fixed size)
-- Frames: configurable, typically 400-500px wide, 300-400px tall
-- Text elements: auto-width ~200px, height ~30px
-- Shapes: configurable, default 150x100
+OBJECT SIZES: Sticky notes 200x200, frames ~450x350, text ~200x30, shapes default 150x100.
 
-LAYOUT GUIDELINES:
-- Always space objects with at least 20px gaps between them
-- For grid layouts: use consistent column widths and row heights
-- For templates with frames: place frames side-by-side with 20px gaps, then place sticky notes INSIDE frames (offset x+20, y+50 from frame top-left to account for title bar)
-- Frame title bars are 28px tall, so content inside frames should start at frame.y + 40
-- When arranging existing objects in a grid, calculate positions based on object count: columns = ceil(sqrt(count)), then distribute evenly
-- When no position is specified, start at (50, 50) and spread logically
+GUIDELINES:
+- Space objects with 20px+ gaps. Start at (50, 50) when no position given.
+- Frame title bars are 28px tall; place content inside at frame.y + 40.
+- Call get_board_state first when modifying existing objects.`
 
-TEMPLATE RECIPES (use these exact layouts for best results):
+const TEMPLATE_RECIPES = `
+
+TEMPLATE RECIPES (use these exact layouts):
 
 SWOT Analysis:
-- Create 4 frames in a 2x2 grid: Strengths (50,50), Weaknesses (520,50), Opportunities (50,420), Threats (520,420)
-- Each frame: 450x350
-- Add 2-3 sticky notes inside each frame with relevant starter text
-- Use colors: green for Strengths, blue for Weaknesses, yellow for Opportunities, pink for Threats
+- 4 frames in 2x2 grid: Strengths (50,50), Weaknesses (520,50), Opportunities (50,420), Threats (520,420), each 450x350
+- 2-3 sticky notes per frame. Colors: green=Strengths, blue=Weaknesses, yellow=Opportunities, pink=Threats
 
 User Journey Map:
-- Create a title text at top: (50, 30)
-- Create 5 frames in a horizontal row for stages, each ~240x350, starting at (50, 80) with 20px gaps
-- Stage names: Awareness, Consideration, Purchase, Onboarding, Retention (or as specified)
-- Add 2-3 sticky notes in each frame for actions/emotions/touchpoints
+- Title text at (50,30). 5 frames horizontal: each ~240x350, starting (50,80) with 20px gaps
+- Stages: Awareness, Consideration, Purchase, Onboarding, Retention. 2-3 notes per frame.
 
 Retrospective Board:
-- Create 3 frames side by side: "What Went Well" (50,50), "What Didn't Go Well" (520,50), "Action Items" (990,50)
-- Each frame: 450x500
-- Use green sticky notes for "Went Well", pink for "Didn't Go Well", blue for "Action Items"
-- Add 2-3 starter sticky notes in each frame
+- 3 frames side by side: "What Went Well" (50,50), "What Didn't Go Well" (520,50), "Action Items" (990,50), each 450x500
+- Colors: green=Went Well, pink=Didn't, blue=Actions. 2-3 starter notes per frame.
 
-IMPORTANT:
-- You can call multiple tools in sequence to build complex layouts
-- Always call get_board_state first if you need to reference or modify existing objects
-- For "arrange" or "layout" commands, call get_board_state first to get current object positions and IDs, then use move_object to reposition them
-- When creating templates, create ALL frames first, then add sticky notes inside them
+IMPORTANT: Create ALL frames first, then add sticky notes inside them.
+For "arrange"/"layout" commands, call get_board_state first, then use move_object.`
 
-CURRENT BOARD STATE (${objects.length} objects):
-${objects.length === 0 ? '(empty board)' : summary}`
+function buildSystemPrompt(objects: BoardObject[], complex: boolean): string {
+  const state = `\n\nCURRENT BOARD STATE (${objects.length} objects):\n${boardStateSummary(objects)}`
+  return BASE_SYSTEM_PROMPT + (complex ? TEMPLATE_RECIPES : '') + state
+}
+
+// Generate a summary message from results so we can skip a final LLM round-trip
+function summarizeResults(results: AiResult[]): string {
+  const created = results.filter((r) => r.action === 'create').length
+  const updated = results.filter((r) => r.action === 'update').length
+  const deleted = results.filter((r) => r.action === 'delete').length
+  const parts: string[] = []
+  if (created) parts.push(`Created ${created} object${created > 1 ? 's' : ''}`)
+  if (updated) parts.push(`Updated ${updated} object${updated > 1 ? 's' : ''}`)
+  if (deleted) parts.push(`Deleted ${deleted} object${deleted > 1 ? 's' : ''}`)
+  return parts.join('. ') + '.'
 }
 
 // Execute a single tool call against Supabase
@@ -397,14 +403,15 @@ export async function POST(request: Request) {
       current: boardObjects.reduce((max, o) => Math.max(max, o.z_index ?? 0), 0),
     }
 
+    const complex = isComplexCommand(text)
     const anthropic = new Anthropic()
-    const systemPrompt = buildSystemPrompt(boardObjects)
+    const systemPrompt = buildSystemPrompt(boardObjects, complex)
 
     const messages: Anthropic.MessageParam[] = [{ role: 'user', content: text }]
 
     const allResults: AiResult[] = []
 
-    // Tool use loop — Claude may call multiple tools across multiple turns
+    // Initial API call
     let response = await anthropic.messages.create({
       model: 'claude-haiku-4-5-20251001',
       max_tokens: 2048,
@@ -415,14 +422,18 @@ export async function POST(request: Request) {
 
     let iterations = 0
     const MAX_ITERATIONS = 10
+    let earlyReturn = false
 
     while (response.stop_reason === 'tool_use' && iterations < MAX_ITERATIONS) {
       iterations++
 
       const toolResultBlocks: Anthropic.ToolResultBlockParam[] = []
+      const toolNames: string[] = []
+      let hasError = false
 
       for (const block of response.content) {
         if (block.type === 'tool_use') {
+          toolNames.push(block.name)
           const { result, response: toolResponse } = await executeTool(
             block.name,
             block.input as Record<string, unknown>,
@@ -432,6 +443,7 @@ export async function POST(request: Request) {
             zIndex
           )
           if (result) allResults.push(result)
+          if (toolResponse.startsWith('Error:')) hasError = true
           toolResultBlocks.push({
             type: 'tool_result',
             tool_use_id: block.id,
@@ -440,23 +452,34 @@ export async function POST(request: Request) {
         }
       }
 
+      // Early return: skip the next API call if this was a simple command,
+      // all tools succeeded, we have actual CRUD results, and no tool was
+      // get_board_state (which signals the model needs to inspect before acting).
+      const calledGetState = toolNames.includes('get_board_state')
+      if (!complex && !hasError && allResults.length > 0 && !calledGetState) {
+        earlyReturn = true
+        break
+      }
+
       messages.push({ role: 'assistant', content: response.content })
       messages.push({ role: 'user', content: toolResultBlocks })
 
       response = await anthropic.messages.create({
-        model: 'claude-sonnet-4-5-20250929',
-        max_tokens: 4096,
+        model: 'claude-haiku-4-5-20251001',
+        max_tokens: 2048,
         system: systemPrompt,
         messages,
         tools: toolDefinitions,
       })
     }
 
-    // Extract final text response
-    const textResponse = response.content
-      .filter((b): b is Anthropic.TextBlock => b.type === 'text')
-      .map((b) => b.text)
-      .join('\n')
+    // Build response text: auto-summary for early return, Claude's text otherwise
+    const textResponse = earlyReturn
+      ? summarizeResults(allResults)
+      : response.content
+          .filter((b): b is Anthropic.TextBlock => b.type === 'text')
+          .map((b) => b.text)
+          .join('\n')
 
     return NextResponse.json({
       message: textResponse,
