@@ -23,7 +23,7 @@ Run all scenarios below and mark pass/fail. Fix any failures before submission.
 | 6e | **Complex command** | "Create a SWOT analysis template with four quadrants" | | |
 | 6f | **Complex command** | "Build a user journey map with 5 stages" | | |
 | 6g | **Complex command** | "Set up a retrospective board with What Went Well, What Didn't, and Action Items" | | |
-| 7 | **Response latency** | Run `npx tsx scripts/test-ai-latency.ts <boardId> <token>`. Single-step commands must be <2s. | | |
+| 7 | **Response latency** | Run `npx tsx scripts/test-ai-latency.ts <boardId> <cookieValue>`. Single-step commands must be <2s. | | |
 | 8 | **Two users issuing AI commands simultaneously** | Two browsers, both send an AI command at the same time. Verify both commands execute and objects appear for both users. | | |
 | 9 | **AI objects visible to all users** | One user sends an AI command. Verify created objects appear on the other user's screen (via broadcast sync). | | |
 
@@ -50,17 +50,17 @@ Requires `NEXT_PUBLIC_SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` in `.env.loc
 ### AI Latency Test
 ```bash
 # Run against local dev server
-npx tsx scripts/test-ai-latency.ts <boardId> <authToken>
+npx tsx scripts/test-ai-latency.ts <boardId> <cookieValue>
 
 # Run against production
-npx tsx scripts/test-ai-latency.ts <boardId> <authToken> https://collabboard-black.vercel.app
+npx tsx scripts/test-ai-latency.ts <boardId> <cookieValue> https://collabboard-black.vercel.app
 ```
 
-To get your auth token:
+To get the cookie value:
 1. Log in to CollabBoard in your browser
-2. Open DevTools → Application → Local Storage
-3. Find the `sb-<project>-auth-token` key
-4. Copy the `access_token` value from the JSON
+2. Open DevTools → Application → Cookies → your domain
+3. Find the `sb-tfftzaohkjhydozaqsfu-auth-token` cookie
+4. Copy the full value (starts with `base64-`)
 
 ## Results Summary
 

@@ -3,33 +3,36 @@
  * Test AI command latency across all 4 command categories.
  *
  * Usage:
- *   npx tsx scripts/test-ai-latency.ts <boardId> <authToken> [baseUrl]
+ *   npx tsx scripts/test-ai-latency.ts <boardId> <cookieValue> [baseUrl]
  *
  * Arguments:
  *   boardId    - UUID of the board to run commands against
- *   authToken  - Supabase access_token (JWT) from a logged-in session.
- *                Get it from: browser DevTools → Application → Local Storage →
- *                sb-<project>-auth-token → access_token field
- *   baseUrl    - API base URL (default: http://localhost:3000)
+ *   cookieValue - The raw value of the sb-tfftzaohkjhydozaqsfu-auth-token cookie.
+ *                 Get it from: browser DevTools → Application → Cookies →
+ *                 localhost (or your domain) → sb-tfftzaohkjhydozaqsfu-auth-token
+ *                 Copy the full value (starts with "base64-").
+ *   baseUrl     - API base URL (default: http://localhost:3000)
  *
  * The script sends 5 commands covering creation, manipulation, layout, and
  * complex categories, logging response time and result count for each.
  */
 
+const COOKIE_NAME = 'sb-tfftzaohkjhydozaqsfu-auth-token'
+
 const boardId = process.argv[2]
-const authToken = process.argv[3]
+const cookieValue = process.argv[3]
 const baseUrl = (process.argv[4] || 'http://localhost:3000').replace(/\/$/, '')
 
-if (!boardId || !authToken) {
+if (!boardId || !cookieValue) {
   console.error(
-    'Usage: npx tsx scripts/test-ai-latency.ts <boardId> <authToken> [baseUrl]'
+    'Usage: npx tsx scripts/test-ai-latency.ts <boardId> <cookieValue> [baseUrl]'
   )
   console.error('')
-  console.error('To get your auth token:')
+  console.error('To get the cookie value:')
   console.error('  1. Log in to CollabBoard in your browser')
-  console.error('  2. Open DevTools → Application → Local Storage')
-  console.error('  3. Find the sb-<project>-auth-token key')
-  console.error('  4. Copy the access_token value')
+  console.error('  2. Open DevTools → Application → Cookies → your domain')
+  console.error(`  3. Find the "${COOKIE_NAME}" cookie`)
+  console.error('  4. Copy the full value (starts with "base64-")')
   process.exit(1)
 }
 
@@ -85,8 +88,7 @@ async function runCommand(cmd: TestCommand): Promise<Result> {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        Cookie: `sb-access-token=${authToken}`,
-        Authorization: `Bearer ${authToken}`,
+        Cookie: `${COOKIE_NAME}=${cookieValue}`,
       },
       body: JSON.stringify({ text: cmd.text, boardId }),
     })
