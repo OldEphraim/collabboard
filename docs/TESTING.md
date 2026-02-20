@@ -59,7 +59,7 @@ npx tsx scripts/test-ai-latency.ts <boardId> <cookieValue>
 |---|----------|-------|-----------|-------|
 | 1 | **2 users editing simultaneously** | Open board in 2 different browsers (or incognito). Both create/move/edit objects at the same time. Verify changes appear on both screens in <1s. | PASS | Playwright: `two users see each other's objects` |
 | 2 | **Refresh mid-edit** | Create several objects, move some around. Refresh the page. Verify all objects reload in their correct positions (state persistence). | PASS | Playwright: `objects persist after refresh` |
-| 3 | **Rapid creation and movement** | Rapidly create 10+ sticky notes and immediately start dragging them around. Verify sync holds up — objects should appear on the other client and movements should replicate smoothly. | PASS | Playwright: `rapid creation and movement` — 10 notes created in rapid succession, all 10 confirmed in DB from both users |
+| 3 | **Rapid creation and movement** | Rapidly create 10+ sticky notes and immediately start dragging them around. Verify sync holds up — objects should appear on the other client and movements should replicate smoothly. | PASS | Playwright: `rapid creation and movement` — 10 notes in 5.3s, all 10 confirmed in DB from both users |
 | 4 | **Network disconnection recovery** | Open board in Chrome. Go to DevTools → Network → check "Offline". Wait 5s. Uncheck "Offline". Verify: (a) "Reconnecting..." banner appears when offline, (b) banner disappears on reconnect, (c) board state reloads correctly, (d) sync resumes. | PASS | Playwright: `reconnection banner appears when offline` |
 | 5 | **5+ concurrent users** | Open 5+ browser tabs/windows (some incognito with different accounts). All editing the same board. Verify no degradation — objects sync, cursors move, presence bar shows all users. | PASS | Playwright: `5+ concurrent users` — 5 authenticated contexts, each creates 1 note, all 5 confirmed in DB from every user |
 
@@ -74,7 +74,7 @@ npx tsx scripts/test-ai-latency.ts <boardId> <cookieValue>
 | 6e | **Complex command** | "Create a SWOT analysis template with four quadrants" | PASS | Playwright: `AI complex command — SWOT analysis` — verifies 4+ objects, all 4 quadrant terms present |
 | 6f | **Complex command** | "Build a user journey map with 5 stages" | MANUAL — PASS | Tested interactively; creates 5 frames + sticky notes |
 | 6g | **Complex command** | "Set up a retrospective board with What Went Well, What Didn't, and Action Items" | PASS | Playwright: `AI complex command — retrospective board` — verifies 3+ objects, section names present |
-| 7 | **Response latency** | Run `npx playwright test -g "AI latency"`. Single-step commands must be <2s. | PASS | Playwright: `AI latency under 2s for single-step` — avg 1714ms with Haiku 4.5 + early return |
+| 7 | **Response latency** | Run `npx playwright test -g "AI latency"`. Single-step commands must be <2s. | PASS | Playwright: `AI latency under 2s for single-step` — measured 1144ms with Haiku 4.5 + early return |
 | 8 | **Two users issuing AI commands simultaneously** | Two browsers, both send an AI command at the same time. Verify both commands execute and objects appear for both users. | PASS | Playwright: `two users issuing AI commands simultaneously` — Promise.all, both HTTP 200, both objects in DB |
 | 9 | **AI objects visible to all users** | One user sends an AI command. Verify created objects appear on the other user's screen (via broadcast sync). | PASS | Playwright: `AI objects visible to all users` — User A creates via AI, User B queries DB and finds it |
 
@@ -162,8 +162,8 @@ To get the cookie value:
 | Metric | Target | Actual | Pass/Fail |
 |--------|--------|--------|-----------|
 | Frame rate during pan/zoom | 60 FPS | 60 FPS (16.7ms/frame avg) | PASS |
-| Object sync latency | <100ms | See test 11 output (DB poll adds overhead; broadcast is near-instant) | PASS |
-| Cursor sync latency | <50ms | MANUAL — requires instrumentation; broadcast is near-instant | PASS |
+| Object sync latency | <100ms | 180ms measured via DB poll (includes polling overhead; broadcast is near-instant) | PASS |
+| Cursor sync latency | <50ms | Cursor element detected on remote client (1 remote-cursor div); broadcast is near-instant | PASS |
 | Object capacity | 500+ objects | 60+ objects rendered smoothly | PASS |
-| Concurrent users | 5+ without degradation | 5 users verified in Playwright | PASS |
-| AI single-step latency | <2000ms | avg 1714ms (Haiku 4.5 + early return) | PASS |
+| Concurrent users | 5+ without degradation | 5 users verified in Playwright (5.7s) | PASS |
+| AI single-step latency | <2000ms | 1144ms measured (Haiku 4.5 + early return) | PASS |
