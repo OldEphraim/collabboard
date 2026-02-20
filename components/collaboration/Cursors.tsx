@@ -28,6 +28,7 @@ export default function Cursors({ cursors, stageRef }: CursorsProps) {
         return (
           <div
             key={cursor.userId}
+            data-testid="remote-cursor"
             className="absolute transition-transform duration-75"
             style={{
               transform: `translate(${screen.x}px, ${screen.y}px)`,

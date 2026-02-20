@@ -62,6 +62,36 @@ To get the cookie value:
 3. Find the `sb-tfftzaohkjhydozaqsfu-auth-token` cookie
 4. Copy the full value (starts with `base64-`)
 
+## Automated E2E Tests (Playwright)
+
+Automated tests cover the core evaluator scenarios. They run against the local dev server.
+
+### Prerequisites
+- Dev server running: `npm run dev`
+- `.env.local` configured with Supabase and Anthropic keys
+- Playwright browsers installed: `npx playwright install chromium`
+
+### Running
+```bash
+# Run all e2e tests
+npx playwright test
+
+# Run with headed browser (visible)
+npx playwright test --headed
+
+# Run a specific test
+npx playwright test -g "objects persist"
+```
+
+### Test Coverage
+| Test | Scenario |
+|------|----------|
+| objects persist after refresh | Create object, refresh, verify still in DB |
+| two users see each other's objects | Two browser contexts, User A creates, User B sees |
+| cursor sync between users | User A moves mouse, User B sees cursor element |
+| AI command creates objects | POST to /api/ai-command, verify object in DB |
+| reconnection banner appears when offline | Set offline, check banner, go online, check hidden |
+
 ## Results Summary
 
 | Metric | Target | Actual | Pass/Fail |
