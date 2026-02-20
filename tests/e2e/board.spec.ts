@@ -229,6 +229,7 @@ test('cursor sync between users', async () => {
   const cursorElements = await authB.page.locator('[data-testid="remote-cursor"]').count()
   const presenceExists = await authB.page.locator('text=Online').count()
 
+  console.log(`[CURSOR SYNC] remote-cursor elements: ${cursorElements}, presence "Online" elements: ${presenceExists}`)
   expect(cursorElements > 0 || presenceExists > 0).toBeTruthy()
 })
 
