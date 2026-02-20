@@ -238,10 +238,6 @@ Priority: Medium — improves grade but not required
 1. Fix hydration warnings from Phase 1
 2. Transform handles only visible on selected objects
 3. Next.js middleware → proxy rename (deprecation warning)
-4. Error handling: user-facing messages for failed operations
-5. Loading states: skeleton/spinner while board loads
-6. Viewport persistence (save camera position per board)
-7. Mobile touch support (nice-to-have)
 
 ### Phase 10: Submission Deliverables (Alan does these, Claude Code helps with README)
 Priority: CRITICAL — required for submission by Sunday 10:59 PM CT

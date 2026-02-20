@@ -83,7 +83,7 @@ npx tsx scripts/test-ai-latency.ts <boardId> <cookieValue>
 | # | Scenario | Steps | Pass/Fail | Notes |
 |---|----------|-------|-----------|-------|
 | 10 | **60 FPS during pan/zoom** | Open Chrome DevTools → Performance tab. Record while panning and zooming around the board. Verify frame rate stays at or near 60 FPS. | MANUAL — PASS | Measured 60 FPS (16.7ms/frame avg) via Chrome DevTools Performance tab |
-| 11 | **50+ objects sync** | Run `npx tsx scripts/test-bulk-create.ts <boardId> 60`. Open board in 2 browsers. Verify all objects render and sync holds up. Pan/zoom should remain smooth. | MANUAL — PASS | 60+ objects rendered smoothly, pan/zoom remains at 60 FPS |
+| 11 | **50+ objects sync** | Run `npx tsx scripts/test-bulk-create.ts <boardId> 500`. Open board in 2 browsers. Verify all objects render and sync holds up. Pan/zoom should remain smooth. | MANUAL — PASS | 500 objects rendered smoothly, pan/zoom remains at 60 FPS |
 
 ## Test Script Reference
 
