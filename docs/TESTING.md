@@ -2,6 +2,57 @@
 
 Run all scenarios below and mark pass/fail. Fix any failures before submission.
 
+## How to Run All Tests
+
+### Step 1: Start the dev server (keep this running in a terminal)
+```bash
+npm run dev
+```
+Wait until you see `Ready in Xms` before proceeding.
+
+### Step 2: Run the Playwright e2e tests (in a separate terminal)
+```bash
+# Install browser if you haven't already (one-time)
+npx playwright install chromium
+
+# Run all 16 tests
+npx playwright test
+```
+
+This will:
+- Create test users automatically via Supabase Auth
+- Create fresh boards for each test that needs isolation
+- Test object persistence, multi-user sync, cursor sync, AI commands, reconnection, and latency
+- Print results and any `[LATENCY]` measurements to the console
+
+**Useful flags:**
+```bash
+npx playwright test --headed          # Watch the tests run in a visible browser
+npx playwright test -g "AI"           # Run only AI-related tests
+npx playwright test -g "SWOT"         # Run a single specific test
+npx playwright test --reporter=html   # Generate an HTML report (opens in browser)
+```
+
+### Step 3: Run the bulk create script (manual performance test)
+```bash
+# Get a board ID from the dashboard (create one or use an existing one)
+# Then create 60 objects on it:
+npx tsx scripts/test-bulk-create.ts <boardId>
+```
+After running, open that board in 2 browser windows and verify smooth pan/zoom.
+
+### Step 4: Run the standalone AI latency test (optional, Playwright covers this)
+```bash
+# Get your auth cookie: DevTools → Application → Cookies → sb-tfftzaohkjhydozaqsfu-auth-token
+npx tsx scripts/test-ai-latency.ts <boardId> <cookieValue>
+```
+
+### Step 5: Manual tests (not automatable)
+- **60 FPS check**: Open a board with 50+ objects → Chrome DevTools → Performance tab → Record while panning/zooming → Check frame rate
+- **Cursor sync**: Open 2 browsers on the same board → Move mouse in one → Verify cursor appears in the other with name label
+
+---
+
 ## Spec Testing Scenarios
 
 | # | Scenario | Steps | Pass/Fail | Notes |
