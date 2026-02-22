@@ -11,6 +11,7 @@ interface CircleShapeProps {
   onSelect: () => void
   onUpdate: (id: string, updates: Partial<BoardObject>) => void
   onDragMove: (id: string, x: number, y: number) => void
+  highContrast?: boolean
 }
 
 export default function CircleShape({
@@ -19,6 +20,7 @@ export default function CircleShape({
   onSelect,
   onUpdate,
   onDragMove,
+  highContrast,
 }: CircleShapeProps) {
   const shapeRef = useRef<Konva.Circle>(null)
   const transformerRef = useRef<Konva.Transformer>(null)
@@ -69,6 +71,7 @@ export default function CircleShape({
   return (
     <>
       <Circle
+        name={object.id}
         ref={shapeRef}
         x={object.x}
         y={object.y}
@@ -76,7 +79,7 @@ export default function CircleShape({
         rotation={object.rotation}
         fill={props.fill ?? '#DBEAFE'}
         stroke={props.stroke ?? '#3B82F6'}
-        strokeWidth={props.strokeWidth ?? 2}
+        strokeWidth={highContrast ? Math.max(3, props.strokeWidth ?? 2) : (props.strokeWidth ?? 2)}
         draggable
         dragDistance={5}
         onClick={onSelect}

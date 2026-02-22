@@ -9,6 +9,7 @@ interface ConnectorProps {
   isSelected: boolean
   onSelect: () => void
   onUpdate: (id: string, updates: Partial<BoardObject>) => void
+  highContrast?: boolean
 }
 
 function getObjectCenter(obj: BoardObject): { x: number; y: number } {
@@ -27,6 +28,7 @@ export default function Connector({
   objects,
   isSelected,
   onSelect,
+  highContrast,
 }: ConnectorProps) {
   const props = object.properties as unknown as ConnectorProperties
   const fromObj = objects.find((o) => o.id === props.fromId)
@@ -40,9 +42,9 @@ export default function Connector({
   return (
     <Arrow
       points={[from.x, from.y, to.x, to.y]}
-      stroke={props.stroke ?? '#6B7280'}
-      strokeWidth={props.strokeWidth ?? 2}
-      fill={props.stroke ?? '#6B7280'}
+      stroke={highContrast ? '#000000' : (props.stroke ?? '#6B7280')}
+      strokeWidth={highContrast ? 3 : (props.strokeWidth ?? 2)}
+      fill={highContrast ? '#000000' : (props.stroke ?? '#6B7280')}
       pointerLength={10}
       pointerWidth={8}
       hitStrokeWidth={12}

@@ -131,6 +131,7 @@ export default function TextElement({
   return (
     <>
       <Text
+        name={object.id}
         ref={textRef}
         x={object.x}
         y={object.y}

@@ -3,7 +3,7 @@
 import { useRef, useState, useCallback, useEffect } from 'react'
 import { Stage, Layer, Rect } from 'react-konva'
 import type Konva from 'konva'
-import type { BoardObject } from '@/types/board'
+import type { BoardObject, FrameProperties } from '@/types/board'
 import StickyNote from './StickyNote'
 import Shape from './Shape'
 import CircleShape from './CircleShape'
@@ -23,11 +23,41 @@ interface BoardCanvasProps {
   stageRef: React.RefObject<Konva.Stage | null>
   connectingFrom: string | null
   onConnectTo: (toId: string) => void
+  highContrast?: boolean
 }
 
 const MIN_SCALE = 0.1
 const MAX_SCALE = 5
 const ZOOM_FACTOR = 1.1
+
+// Check if an object's center is inside a frame's bounds
+function isInsideFrame(obj: BoardObject, frame: BoardObject): boolean {
+  const objCenterX = obj.type === 'circle' ? obj.x : obj.x + obj.width / 2
+  const objCenterY = obj.type === 'circle' ? obj.y : obj.y + obj.height / 2
+  return (
+    objCenterX >= frame.x &&
+    objCenterX <= frame.x + frame.width &&
+    objCenterY >= frame.y &&
+    objCenterY <= frame.y + frame.height
+  )
+}
+
+// Recursively collect objects inside a locked frame (handles nested locked frames)
+function collectLockedFrameContents(
+  frame: BoardObject,
+  allObjects: BoardObject[],
+  collected: Map<string, { x: number; y: number }>
+) {
+  for (const obj of allObjects) {
+    if (collected.has(obj.id) || obj.type === 'connector' || obj.id === frame.id) continue
+    if (isInsideFrame(obj, frame)) {
+      collected.set(obj.id, { x: obj.x, y: obj.y })
+      if (obj.type === 'frame' && (obj.properties as unknown as FrameProperties).locked) {
+        collectLockedFrameContents(obj, allObjects, collected)
+      }
+    }
+  }
+}
 
 export default function BoardCanvas({
   objects,
@@ -39,8 +69,10 @@ export default function BoardCanvas({
   stageRef,
   connectingFrom,
   onConnectTo,
+  highContrast,
 }: BoardCanvasProps) {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
+  const [focusedObjectId, setFocusedObjectId] = useState<string | null>(null)
   const [stageSize, setStageSize] = useState({ width: 0, height: 0 })
   const [stageDraggable, setStageDraggable] = useState(true)
   const [selectionRect, setSelectionRect] = useState<{
@@ -52,6 +84,134 @@ export default function BoardCanvas({
   const justFinishedSelectionRef = useRef(false)
 
   const selectedObjects = objects.filter((o) => selectedIds.has(o.id))
+
+  // Multi-drag tracking: records start positions when dragging multiple objects
+  const multiDragRef = useRef<{
+    draggedId: string
+    startPositions: Map<string, { x: number; y: number }>
+  } | null>(null)
+  // Use refs for current values to avoid stale closures in drag callbacks
+  const selectedIdsRef = useRef(selectedIds)
+  selectedIdsRef.current = selectedIds
+  const objectsRef = useRef(objects)
+  objectsRef.current = objects
+
+  // Navigable objects (exclude connectors) sorted by z_index
+  const navigableObjects = [...objects]
+    .filter((o) => o.type !== 'connector')
+    .sort((a, b) => a.z_index - b.z_index)
+
+  // Wrapped drag-move handler: moves all selected/locked-frame objects together
+  const handleObjectDragMove = useCallback(
+    (id: string, x: number, y: number) => {
+      // Always broadcast the primary dragged object
+      onDragMove(id, x, y)
+
+      // Initialize multi-drag on first move
+      if (!multiDragRef.current) {
+        const currentSelectedIds = selectedIdsRef.current
+        const currentObjects = objectsRef.current
+        const startPositions = new Map<string, { x: number; y: number }>()
+
+        // Multi-select: include all selected objects
+        if (currentSelectedIds.has(id) && currentSelectedIds.size > 1) {
+          for (const obj of currentObjects) {
+            if (currentSelectedIds.has(obj.id)) {
+              startPositions.set(obj.id, { x: obj.x, y: obj.y })
+            }
+          }
+        }
+
+        // Locked frame: include contained objects
+        const draggedObj = currentObjects.find((o) => o.id === id)
+        if (
+          draggedObj?.type === 'frame' &&
+          (draggedObj.properties as unknown as FrameProperties).locked
+        ) {
+          if (!startPositions.has(id)) {
+            startPositions.set(id, { x: draggedObj.x, y: draggedObj.y })
+          }
+          collectLockedFrameContents(draggedObj, currentObjects, startPositions)
+        }
+
+        // Check locked frames in multi-selection
+        for (const [selId] of startPositions) {
+          if (selId === id) continue
+          const selObj = currentObjects.find((o) => o.id === selId)
+          if (
+            selObj?.type === 'frame' &&
+            (selObj.properties as unknown as FrameProperties).locked
+          ) {
+            collectLockedFrameContents(selObj, currentObjects, startPositions)
+          }
+        }
+
+        // Only set up multi-drag if there are extra objects to move
+        if (startPositions.size > 1) {
+          if (!startPositions.has(id)) {
+            const obj = currentObjects.find((o) => o.id === id)
+            if (obj) startPositions.set(id, { x: obj.x, y: obj.y })
+          }
+          multiDragRef.current = { draggedId: id, startPositions }
+        }
+      }
+
+      // Move sibling objects via direct Konva node manipulation
+      const multi = multiDragRef.current
+      if (multi && multi.draggedId === id) {
+        const start = multi.startPositions.get(id)
+        if (!start) return
+        const dx = x - start.x
+        const dy = y - start.y
+        const stage = stageRef.current
+        if (!stage) return
+
+        for (const [otherId, otherStart] of multi.startPositions) {
+          if (otherId === id) continue
+          const newX = otherStart.x + dx
+          const newY = otherStart.y + dy
+          const node = stage.findOne('.' + otherId)
+          if (node) {
+            node.position({ x: newX, y: newY })
+          }
+        }
+      }
+    },
+    [onDragMove, stageRef]
+  )
+
+  // Wrapped update handler: on drag-end, persists sibling positions
+  const handleObjectUpdate = useCallback(
+    (id: string, updates: Partial<BoardObject>) => {
+      onUpdate(id, updates)
+
+      const multi = multiDragRef.current
+      if (
+        multi &&
+        multi.draggedId === id &&
+        'x' in updates &&
+        'y' in updates &&
+        !('width' in updates)
+      ) {
+        const start = multi.startPositions.get(id)
+        if (start) {
+          const dx = (updates.x as number) - start.x
+          const dy = (updates.y as number) - start.y
+
+          for (const [otherId, otherStart] of multi.startPositions) {
+            if (otherId !== id) {
+              onUpdate(otherId, {
+                x: otherStart.x + dx,
+                y: otherStart.y + dy,
+              })
+            }
+          }
+        }
+        multiDragRef.current = null
+      }
+    },
+    [onUpdate]
+  )
 
   // Measure container on mount
   const containerCallbackRef = useCallback(
@@ -92,6 +252,7 @@ export default function BoardCanvas({
       if ((e.key === 'Delete' || e.key === 'Backspace') && selectedIds.size > 0) {
         onDelete(Array.from(selectedIds))
         setSelectedIds(new Set())
+        setFocusedObjectId(null)
       }
       if (e.key === 'd' && (e.metaKey || e.ctrlKey) && selectedIds.size > 0) {
         e.preventDefault()
@@ -99,7 +260,14 @@ export default function BoardCanvas({
       }
       if (e.key === 'Escape') {
         setSelectedIds(new Set())
+        setFocusedObjectId(null)
         if (connectingFrom) onConnectTo('')
+      }
+      // Select all: Ctrl/Cmd+A
+      if (e.key === 'a' && (e.metaKey || e.ctrlKey)) {
+        e.preventDefault()
+        const allIds = new Set(navigableObjects.map((o) => o.id))
+        setSelectedIds(allIds)
       }
       // Copy: Ctrl/Cmd+C
       if (e.key === 'c' && (e.metaKey || e.ctrlKey) && selectedIds.size > 0) {
@@ -116,6 +284,50 @@ export default function BoardCanvas({
             const objs = JSON.parse(clip) as BoardObject[]
             onDuplicate(objs)
           } catch { /* ignore */ }
+        }
+      }
+      // Tab / Shift+Tab: cycle through objects
+      if (e.key === 'Tab' && navigableObjects.length > 0) {
+        e.preventDefault()
+        const currentIndex = focusedObjectId
+          ? navigableObjects.findIndex((o) => o.id === focusedObjectId)
+          : -1
+        let nextIndex: number
+        if (e.shiftKey) {
+          nextIndex = currentIndex <= 0 ? navigableObjects.length - 1 : currentIndex - 1
+        } else {
+          nextIndex = currentIndex >= navigableObjects.length - 1 ? 0 : currentIndex + 1
+        }
+        const nextObj = navigableObjects[nextIndex]
+        setFocusedObjectId(nextObj.id)
+        setSelectedIds(new Set([nextObj.id]))
+      }
+      // Arrow keys: move selected objects
+      if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key) && selectedIds.size > 0) {
+        e.preventDefault()
+        const step = e.shiftKey ? 20 : 5
+        let dx = 0
+        let dy = 0
+        if (e.key === 'ArrowUp') dy = -step
+        if (e.key === 'ArrowDown') dy = step
+        if (e.key === 'ArrowLeft') dx = -step
+        if (e.key === 'ArrowRight') dx = step
+        for (const obj of selectedObjects) {
+          handleObjectUpdate(obj.id, { x: obj.x + dx, y: obj.y + dy })
+        }
+      }
+      // Enter: start editing focused object
+      if (e.key === 'Enter' && focusedObjectId && !e.metaKey && !e.ctrlKey) {
+        const focusedObj = objects.find((o) => o.id === focusedObjectId)
+        if (focusedObj && (focusedObj.type === 'sticky_note' || focusedObj.type === 'text')) {
+          e.preventDefault()
+          const stage = stageRef.current
+          if (stage) {
+            const node = stage.findOne('.' + focusedObjectId)
+            if (node) {
+              node.fire('dblclick')
+            }
+          }
         }
       }
     }
@@ -136,7 +348,7 @@ export default function BoardCanvas({
       window.removeEventListener('keyup', handleKeyUp)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedIds, selectedObjects, onDelete, onDuplicate, connectingFrom, onConnectTo])
+  }, [selectedIds, selectedObjects, onDelete, onDuplicate, connectingFrom, onConnectTo, focusedObjectId, navigableObjects, objects, handleObjectUpdate, stageRef])
 
   // Window-level pointermove for continuous cursor tracking
   useEffect(() => {
@@ -277,6 +489,7 @@ export default function BoardCanvas({
       }
       if (e.target === e.target.getStage()) {
         setSelectedIds(new Set())
+        setFocusedObjectId(null)
       }
     },
     []
@@ -291,6 +504,7 @@ export default function BoardCanvas({
         }
         return
       }
+      setFocusedObjectId(id)
       setSelectedIds((prev) => {
         if (isShiftHeldRef.current) {
           const next = new Set(prev)
@@ -311,10 +525,16 @@ export default function BoardCanvas({
     return order(a.type) - order(b.type) || a.z_index - b.z_index
   })
 
+  // Get focus ring position for the focused object
+  const focusedObj = focusedObjectId ? objects.find((o) => o.id === focusedObjectId) : null
+
   return (
     <div
       ref={containerCallbackRef}
-      className="h-full w-full"
+      tabIndex={0}
+      role="application"
+      aria-label="Whiteboard canvas. Use Tab to cycle through objects, arrow keys to move, Enter to edit, Delete to remove."
+      className="h-full w-full outline-none"
       style={{ cursor: connectingFrom ? 'crosshair' : 'grab' }}
     >
       {stageSize.width > 0 && (
@@ -329,7 +549,7 @@ export default function BoardCanvas({
           onMouseDown={handleStageMouseDown}
           onMouseMove={handleStageMouseMove}
           onMouseUp={handleStageMouseUp}
-          style={{ background: '#F9FAFB' }}
+          style={{ background: highContrast ? '#FFFFFF' : '#F9FAFB' }}
         >
           <Layer>
             {sortedObjects.map((obj) => {
@@ -340,8 +560,9 @@ export default function BoardCanvas({
                     object={obj}
                     isSelected={selectedIds.has(obj.id)}
                     onSelect={() => handleObjectSelect(obj.id)}
-                    onUpdate={onUpdate}
-                    onDragMove={onDragMove}
+                    onUpdate={handleObjectUpdate}
+                    onDragMove={handleObjectDragMove}
+                    highContrast={highContrast}
                   />
                 )
               }
@@ -353,7 +574,8 @@ export default function BoardCanvas({
                     objects={objects}
                     isSelected={selectedIds.has(obj.id)}
                     onSelect={() => handleObjectSelect(obj.id)}
-                    onUpdate={onUpdate}
+                    onUpdate={handleObjectUpdate}
+                    highContrast={highContrast}
                   />
                 )
               }
@@ -364,9 +586,10 @@ export default function BoardCanvas({
                     object={obj}
                     isSelected={selectedIds.has(obj.id)}
                     onSelect={() => handleObjectSelect(obj.id)}
-                    onUpdate={onUpdate}
-                    onDragMove={onDragMove}
+                    onUpdate={handleObjectUpdate}
+                    onDragMove={handleObjectDragMove}
                     stageRef={stageRef}
+                    highContrast={highContrast}
                   />
                 )
               }
@@ -377,8 +600,9 @@ export default function BoardCanvas({
                     object={obj}
                     isSelected={selectedIds.has(obj.id)}
                     onSelect={() => handleObjectSelect(obj.id)}
-                    onUpdate={onUpdate}
-                    onDragMove={onDragMove}
+                    onUpdate={handleObjectUpdate}
+                    onDragMove={handleObjectDragMove}
+                    highContrast={highContrast}
                   />
                 )
               }
@@ -389,8 +613,9 @@ export default function BoardCanvas({
                     object={obj}
                     isSelected={selectedIds.has(obj.id)}
                     onSelect={() => handleObjectSelect(obj.id)}
-                    onUpdate={onUpdate}
-                    onDragMove={onDragMove}
+                    onUpdate={handleObjectUpdate}
+                    onDragMove={handleObjectDragMove}
+                    highContrast={highContrast}
                   />
                 )
               }
@@ -401,8 +626,8 @@ export default function BoardCanvas({
                     object={obj}
                     isSelected={selectedIds.has(obj.id)}
                     onSelect={() => handleObjectSelect(obj.id)}
-                    onUpdate={onUpdate}
-                    onDragMove={onDragMove}
+                    onUpdate={handleObjectUpdate}
+                    onDragMove={handleObjectDragMove}
                   />
                 )
               }
@@ -413,14 +638,27 @@ export default function BoardCanvas({
                     object={obj}
                     isSelected={selectedIds.has(obj.id)}
                     onSelect={() => handleObjectSelect(obj.id)}
-                    onUpdate={onUpdate}
-                    onDragMove={onDragMove}
+                    onUpdate={handleObjectUpdate}
+                    onDragMove={handleObjectDragMove}
                     stageRef={stageRef}
                   />
                 )
               }
               return null
             })}
+            {/* Focus ring for keyboard-focused object */}
+            {focusedObj && (
+              <Rect
+                x={focusedObj.type === 'circle' ? focusedObj.x - focusedObj.width / 2 - 4 : focusedObj.x - 4}
+                y={focusedObj.type === 'circle' ? focusedObj.y - focusedObj.height / 2 - 4 : focusedObj.y - 4}
+                width={focusedObj.width + 8}
+                height={focusedObj.height + 8}
+                stroke="#3B82F6"
+                strokeWidth={2}
+                dash={[6, 3]}
+                listening={false}
+              />
+            )}
             {/* Selection rectangle */}
             {selectionRect && (
               <Rect
@@ -440,7 +678,7 @@ export default function BoardCanvas({
       {/* Selection actions bar (HTML overlay) */}
       <SelectionActions
         selectedObjects={selectedObjects}
-        onUpdate={onUpdate}
+        onUpdate={handleObjectUpdate}
         onDelete={onDelete}
         onDuplicate={onDuplicate}
       />

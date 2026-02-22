@@ -11,6 +11,7 @@ interface FrameProps {
   onSelect: () => void
   onUpdate: (id: string, updates: Partial<BoardObject>) => void
   onDragMove: (id: string, x: number, y: number) => void
+  highContrast?: boolean
 }
 
 const TITLE_HEIGHT = 28
@@ -21,6 +22,7 @@ export default function FrameComponent({
   onSelect,
   onUpdate,
   onDragMove,
+  highContrast,
 }: FrameProps) {
   const groupRef = useRef<Konva.Group>(null)
   const transformerRef = useRef<Konva.Transformer>(null)
@@ -70,6 +72,7 @@ export default function FrameComponent({
   return (
     <>
       <Group
+        name={object.id}
         ref={groupRef}
         x={object.x}
         y={object.y}
@@ -89,7 +92,7 @@ export default function FrameComponent({
           cornerRadius={[4, 4, 0, 0]}
         />
         <Text
-          text={props.title ?? 'Frame'}
+          text={(props.locked ? '\uD83D\uDD12 ' : '') + (props.title ?? 'Frame')}
           width={object.width - 12}
           x={6}
           y={6}
@@ -106,9 +109,9 @@ export default function FrameComponent({
           height={object.height - TITLE_HEIGHT}
           fill={props.fill ?? 'rgba(249, 250, 251, 0.5)'}
           stroke={props.stroke ?? '#6B7280'}
-          strokeWidth={props.strokeWidth ?? 1}
+          strokeWidth={highContrast ? 2 : (props.strokeWidth ?? 1)}
           cornerRadius={[0, 0, 4, 4]}
-          dash={[6, 3]}
+          dash={highContrast ? undefined : [6, 3]}
         />
       </Group>
       {isSelected && (

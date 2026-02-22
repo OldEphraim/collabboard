@@ -57,6 +57,7 @@ export default function LineShape({
 
   return (
     <Group
+      name={object.id}
       x={object.x}
       y={object.y}
       draggable

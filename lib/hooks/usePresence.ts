@@ -3,14 +3,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import type { RealtimeChannel } from '@supabase/supabase-js'
+import { USER_COLORS } from '@/lib/colors'
 
 const CURSOR_THROTTLE_MS = 50
-
-// Consistent user colors for cursor/presence
-const USER_COLORS = [
-  '#EF4444', '#F59E0B', '#10B981', '#3B82F6',
-  '#8B5CF6', '#EC4899', '#14B8A6', '#F97316',
-]
 
 function getColorForUser(userId: string): string {
   let hash = 0

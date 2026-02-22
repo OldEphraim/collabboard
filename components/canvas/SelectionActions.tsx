@@ -1,18 +1,9 @@
 'use client'
 
 import { useState } from 'react'
-import type { BoardObject } from '@/types/board'
-
-const SHAPE_COLORS = [
-  { name: 'Blue', fill: '#DBEAFE', stroke: '#3B82F6' },
-  { name: 'Red', fill: '#FEE2E2', stroke: '#EF4444' },
-  { name: 'Green', fill: '#DCFCE7', stroke: '#22C55E' },
-  { name: 'Purple', fill: '#F3E8FF', stroke: '#A855F7' },
-  { name: 'Orange', fill: '#FED7AA', stroke: '#F97316' },
-  { name: 'Gray', fill: '#F3F4F6', stroke: '#6B7280' },
-]
-
-const STICKY_COLORS = ['yellow', 'blue', 'green', 'pink', 'purple', 'orange']
+import type { BoardObject, FrameProperties } from '@/types/board'
+import { STICKY_NOTE_COLORS, STICKY_COLOR_HEX, SHAPE_COLORS } from '@/lib/colors'
+import { useHighContrast } from '@/lib/hooks/useHighContrast'
 
 interface SelectionActionsProps {
   selectedObjects: BoardObject[]
@@ -28,6 +19,7 @@ export default function SelectionActions({
   onDuplicate,
 }: SelectionActionsProps) {
   const [showColors, setShowColors] = useState(false)
+  const highContrast = useHighContrast()
 
   if (selectedObjects.length === 0) return null
 
@@ -35,6 +27,9 @@ export default function SelectionActions({
   const hasShapes = selectedObjects.some(
     (o) => o.type === 'rectangle' || o.type === 'circle' || o.type === 'line' || o.type === 'frame'
   )
+  const frames = selectedObjects.filter((o) => o.type === 'frame')
+  const hasFrames = frames.length > 0
+  const allFramesLocked = hasFrames && frames.every((f) => (f.properties as unknown as FrameProperties).locked)
 
   const handleColorChange = (color: string, fill?: string, stroke?: string) => {
     for (const obj of selectedObjects) {
@@ -51,8 +46,14 @@ export default function SelectionActions({
     setShowColors(false)
   }
 
+  const hcBorder = highContrast ? ' border-2 border-gray-900' : ''
+
   return (
-    <div className="absolute bottom-4 left-1/2 z-30 flex -translate-x-1/2 items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2 shadow-lg">
+    <div
+      role="toolbar"
+      aria-label="Selection actions"
+      className={`absolute bottom-4 left-1/2 z-30 flex -translate-x-1/2 items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2 shadow-lg${hcBorder}`}
+    >
       <span className="text-xs text-gray-400">
         {selectedObjects.length} selected
       </span>
@@ -62,8 +63,8 @@ export default function SelectionActions({
       <div className="relative">
         <button
           onClick={() => setShowColors(!showColors)}
-          className="rounded px-2 py-1 text-sm text-gray-700 hover:bg-gray-100"
-          title="Change color"
+          className="rounded px-2 py-1 text-sm text-gray-700 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1"
+          aria-label="Change color"
         >
           Color
         </button>
@@ -72,15 +73,17 @@ export default function SelectionActions({
             {hasStickyNotes && (
               <div className="mb-1">
                 <p className="mb-1 text-[10px] font-medium text-gray-400">Notes</p>
-                <div className="flex gap-1">
-                  {STICKY_COLORS.map((c) => (
+                <div className="flex flex-wrap gap-1">
+                  {STICKY_NOTE_COLORS.map((c) => (
                     <button
-                      key={c}
-                      onClick={() => handleColorChange(c)}
-                      className="h-6 w-6 rounded border border-gray-300 hover:scale-110"
-                      style={{ backgroundColor: STICKY_COLOR_HEX[c] }}
-                      title={c}
-                    />
+                      key={c.key}
+                      onClick={() => handleColorChange(c.key)}
+                      className="flex items-center gap-1 rounded border border-gray-300 px-1.5 py-0.5 text-[10px] font-medium hover:scale-105 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      style={{ backgroundColor: c.hex }}
+                      aria-label={`Set note color to ${c.label}`}
+                    >
+                      {c.label}
+                    </button>
                   ))}
                 </div>
               </div>
@@ -88,15 +91,17 @@ export default function SelectionActions({
             {hasShapes && (
               <div>
                 <p className="mb-1 text-[10px] font-medium text-gray-400">Shapes</p>
-                <div className="flex gap-1">
+                <div className="flex flex-wrap gap-1">
                   {SHAPE_COLORS.map((c) => (
                     <button
                       key={c.name}
                       onClick={() => handleColorChange(c.name, c.fill, c.stroke)}
-                      className="h-6 w-6 rounded border border-gray-300 hover:scale-110"
+                      className="flex items-center gap-1 rounded border border-gray-300 px-1.5 py-0.5 text-[10px] font-medium hover:scale-105 focus:outline-none focus:ring-2 focus:ring-blue-500"
                       style={{ backgroundColor: c.fill }}
-                      title={c.name}
-                    />
+                      aria-label={`Set shape color to ${c.name}`}
+                    >
+                      {c.name}
+                    </button>
                   ))}
                 </div>
               </div>
@@ -105,11 +110,29 @@ export default function SelectionActions({
         )}
       </div>
 
+      {/* Lock/Unlock frames */}
+      {hasFrames && (
+        <button
+          onClick={() => {
+            for (const frame of frames) {
+              const locked = (frame.properties as unknown as FrameProperties).locked
+              onUpdate(frame.id, {
+                properties: { ...frame.properties, locked: !locked },
+              })
+            }
+          }}
+          className="rounded px-2 py-1 text-sm text-gray-700 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1"
+          aria-label={allFramesLocked ? 'Unlock frame contents' : 'Lock frame contents'}
+        >
+          {allFramesLocked ? 'Unlock' : 'Lock'}
+        </button>
+      )}
+
       {/* Duplicate */}
       <button
         onClick={() => onDuplicate(selectedObjects)}
-        className="rounded px-2 py-1 text-sm text-gray-700 hover:bg-gray-100"
-        title="Duplicate (Ctrl+D)"
+        className="rounded px-2 py-1 text-sm text-gray-700 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1"
+        aria-label="Duplicate selected objects"
       >
         Duplicate
       </button>
@@ -117,20 +140,11 @@ export default function SelectionActions({
       {/* Delete */}
       <button
         onClick={() => onDelete(selectedObjects.map((o) => o.id))}
-        className="rounded px-2 py-1 text-sm text-red-600 hover:bg-red-50"
-        title="Delete (Delete key)"
+        className="rounded px-2 py-1 text-sm text-red-600 hover:bg-red-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1"
+        aria-label="Delete selected objects"
       >
         Delete
       </button>
     </div>
   )
-}
-
-const STICKY_COLOR_HEX: Record<string, string> = {
-  yellow: '#FEF08A',
-  blue: '#93C5FD',
-  green: '#86EFAC',
-  pink: '#FDA4AF',
-  purple: '#C4B5FD',
-  orange: '#FED7AA',
 }

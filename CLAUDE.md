@@ -186,7 +186,7 @@ All items verified and working on deployed URL.
    - [x] Deployed and publicly accessible at collabboard-black.vercel.app
 6. ~~STOP. Submit MVP.~~ ✅ MVP submitted.
 
-### ═══ POST-MVP (Phases 5-8) — MVP submitted, 79 hours remain ═══
+### ═══ POST-MVP (Phases 5-10) — MVP submitted, ~29 hours remain ═══
 
 ### Phase 5: Extended Board Features ✅ COMPLETE
 Priority: High — these are in the grading rubric
@@ -194,8 +194,7 @@ Priority: High — these are in the grading rubric
 ### Phase 6: AI Agent ✅ COMPLETE
 Priority: High — required for submission, 6+ command types across 4 categories
 
-### Phase 7: Remaining Hard Requirements
-Priority: CRITICAL — these are graded and not yet done
+### Phase 7: Remaining Hard Requirements ✅ COMPLETE
 
 1. **Disconnect/reconnect handling:** Detect lost WebSocket, show "Reconnecting..." indicator, auto-rejoin Broadcast channel on reconnect. Test by disabling network in DevTools briefly, then re-enabling.
 2. **Document conflict resolution approach:** Add a visible note somewhere in the app or README explaining our last-write-wins strategy for simultaneous edits. The spec says "last-write-wins acceptable, document your approach."
@@ -208,8 +207,7 @@ Priority: CRITICAL — these are graded and not yet done
    - If any of these fail or produce poor layouts, improve the system prompt or tool definitions
 5. **Push to Vercel and verify:** All changes must be deployed and working on production URL
 
-### Phase 8: Testing & Verification
-Priority: HIGH — evaluators will run these exact scenarios
+### Phase 8: Testing & Verification ✅ COMPLETE (16/16 Playwright tests passing)
 
 Run and document results for ALL of these:
 
@@ -232,12 +230,40 @@ Run and document results for ALL of these:
 
 Fix any failures found during testing before moving on.
 
-### Phase 9: Polish (time permitting)
-Priority: Medium — improves grade but not required
+### Phase 9: Standout Features — Accessibility + UX Fixes
+Priority: HIGH — differentiates project in interviews, addresses user feedback
 
-1. Fix hydration warnings from Phase 1
-2. Transform handles only visible on selected objects
-3. Next.js middleware → proxy rename (deprecation warning)
+Feedback received: "strong position, add standout features that demonstrate technical depth."
+Community feedback: multi-select should allow dragging, frames should lock children.
+
+#### Phase 9a: UX Fixes (from community feedback)
+1. **Multi-select drag:** When multiple objects are selected (via shift-click or drag-to-select), dragging any selected object should move ALL selected objects together, maintaining their relative positions. Currently multi-select only supports duplicate/delete/recolor.
+2. **Frame locking / grouping:** Objects placed inside a frame should optionally "lock" to that frame, so that when the frame is dragged, all objects within it move together. Add a "Lock contents" toggle on frames. When locked, moving the frame moves everything inside it. When unlocked, objects move independently (current behavior).
+
+#### Phase 9b: Accessibility Overhaul
+The developer is colorblind. This is a personal accessibility feature, not a checkbox exercise. Make CollabBoard genuinely usable for users with visual disabilities.
+
+3. **Colorblind-safe default palette:** Replace the default sticky note and shape color palettes with colors that are distinguishable under common colorblindness types (protanopia, deuteranopia). Use blue/orange as the primary contrast pair instead of red/green. Name all colors in the UI (don't rely on color swatches alone — add text labels like "Blue", "Orange", "Teal").
+4. **High-contrast mode:** Add a toggle (in board header or settings) that switches to a high-contrast theme: darker borders, bolder text, increased contrast ratios. Should meet WCAG AA contrast requirements (4.5:1 for normal text, 3:1 for large text).
+5. **Keyboard navigation:** Users should be able to navigate the board without a mouse:
+   - Tab to cycle through objects on the board (in z-index order)
+   - Arrow keys to move the selected object (5px per press, 20px with Shift held)
+   - Enter to start editing text on the selected object
+   - Delete/Backspace to delete the selected object
+   - Escape to deselect
+   - Ctrl+A to select all objects
+   - The currently-focused object should have a visible focus ring
+6. **Screen reader announcements:** Add ARIA live regions that announce real-time changes:
+   - "[User] joined the board" / "[User] left the board"
+   - "[User] created a sticky note" / "[User] moved [object]"
+   - "AI created 4 objects" (after AI command completes)
+   - These don't need to be visible — they're for screen readers only (`aria-live="polite"`)
+7. **Accessible toolbar:** All toolbar buttons should have proper `aria-label` attributes, be keyboard-focusable, and show focus indicators. The currently active tool should be announced.
+
+#### Phase 9c: Final Polish (if time remains)
+8. Fix hydration warnings from Phase 1
+9. Loading states: skeleton/spinner while board loads
+10. Error handling: user-facing messages for failed operations
 
 ### Phase 10: Submission Deliverables (Alan does these, Claude Code helps with README)
 Priority: CRITICAL — required for submission by Sunday 10:59 PM CT
@@ -312,6 +338,8 @@ channel
 5. **Konva drag vs click:** Set `dragDistance={5}` on draggable components so double-clicks with slight jitter aren't swallowed as drag starts.
 
 6. **Supabase auth email rate limits:** Email confirmation is disabled (Supabase free tier limits to ~3-4 confirmation emails/hour). Users sign up and are immediately active.
+
+7. **Accessibility is a differentiator:** The developer is colorblind. Default red/green color schemes are unusable. Use blue/orange as the primary contrast pair. All color selections must include text labels, not just swatches. This is a personal requirement, not a checkbox exercise.
 
 ## Environment Variables
 

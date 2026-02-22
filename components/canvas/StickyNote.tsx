@@ -4,6 +4,7 @@ import { useRef, useEffect, useState, useCallback } from 'react'
 import { Group, Rect, Text } from 'react-konva'
 import type Konva from 'konva'
 import type { BoardObject, StickyNoteProperties } from '@/types/board'
+import { STICKY_COLOR_HEX } from '@/lib/colors'
 
 interface StickyNoteProps {
   object: BoardObject
@@ -12,15 +13,7 @@ interface StickyNoteProps {
   onUpdate: (id: string, updates: Partial<BoardObject>) => void
   onDragMove: (id: string, x: number, y: number) => void
   stageRef: React.RefObject<Konva.Stage | null>
-}
-
-const STICKY_COLORS: Record<string, string> = {
-  yellow: '#FEF08A',
-  blue: '#93C5FD',
-  green: '#86EFAC',
-  pink: '#FDA4AF',
-  purple: '#C4B5FD',
-  orange: '#FED7AA',
+  highContrast?: boolean
 }
 
 export default function StickyNote({
@@ -30,11 +23,12 @@ export default function StickyNote({
   onUpdate,
   onDragMove,
   stageRef,
+  highContrast,
 }: StickyNoteProps) {
   const textRef = useRef<Konva.Text>(null)
   const [isEditing, setIsEditing] = useState(false)
   const props = object.properties as unknown as StickyNoteProperties
-  const color = STICKY_COLORS[props.color] ?? props.color ?? STICKY_COLORS.yellow
+  const color = STICKY_COLOR_HEX[props.color] ?? props.color ?? STICKY_COLOR_HEX.yellow
   const text = props.text ?? ''
   const fontSize = props.fontSize ?? 14
 
@@ -123,6 +117,7 @@ export default function StickyNote({
 
   return (
     <Group
+      name={object.id}
       x={object.x}
       y={object.y}
       draggable
@@ -149,8 +144,8 @@ export default function StickyNote({
         height={object.height}
         fill={color}
         cornerRadius={4}
-        stroke={isSelected ? '#3B82F6' : 'rgba(0,0,0,0.1)'}
-        strokeWidth={isSelected ? 2 : 1}
+        stroke={highContrast ? '#000000' : isSelected ? '#3B82F6' : 'rgba(0,0,0,0.1)'}
+        strokeWidth={highContrast ? (isSelected ? 3 : 2) : isSelected ? 2 : 1}
       />
       {/* Text */}
       {!isEditing && (
@@ -163,7 +158,7 @@ export default function StickyNote({
           y={8}
           fontSize={fontSize}
           fontFamily="Arial, sans-serif"
-          fill={text ? '#1F2937' : '#9CA3AF'}
+          fill={text ? (highContrast ? '#000000' : '#1F2937') : '#9CA3AF'}
           lineHeight={1.3}
           wrap="word"
           ellipsis
@@ -172,5 +167,3 @@ export default function StickyNote({
     </Group>
   )
 }
-
-export { STICKY_COLORS }

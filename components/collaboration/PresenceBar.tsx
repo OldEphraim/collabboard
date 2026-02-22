@@ -9,7 +9,11 @@ interface PresenceBarProps {
 
 export default function PresenceBar({ users, currentUserId }: PresenceBarProps) {
   return (
-    <div className="flex items-center gap-1.5">
+    <div
+      role="status"
+      aria-label={`${users.length} user${users.length === 1 ? '' : 's'} online`}
+      className="flex items-center gap-1.5"
+    >
       {users.map((user) => (
         <div
           key={user.userId}
@@ -19,6 +23,7 @@ export default function PresenceBar({ users, currentUserId }: PresenceBarProps) 
           <div
             className="h-2.5 w-2.5 rounded-full"
             style={{ backgroundColor: user.color }}
+            aria-hidden="true"
           />
           <span className="max-w-[80px] truncate text-xs text-gray-600">
             {user.userId === currentUserId ? 'You' : user.name}

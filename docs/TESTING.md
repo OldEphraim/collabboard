@@ -164,6 +164,6 @@ To get the cookie value:
 | Frame rate during pan/zoom | 60 FPS | 60 FPS (16.7ms/frame avg) | PASS |
 | Object sync latency | <100ms | 180ms measured via DB poll (includes polling overhead; broadcast is near-instant) | PASS |
 | Cursor sync latency | <50ms | Cursor element detected on remote client (1 remote-cursor div); broadcast is near-instant | PASS |
-| Object capacity | 500+ objects | 60+ objects rendered smoothly | PASS |
+| Object capacity | 500+ objects | 500+ objects rendered smoothly | PASS |
 | Concurrent users | 5+ without degradation | 5 users verified in Playwright (5.7s) | PASS |
 | AI single-step latency | <2000ms | 1144ms measured (Haiku 4.5 + early return) | PASS |

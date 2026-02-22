@@ -69,4 +69,5 @@ export interface FrameProperties {
   fill?: string
   stroke?: string
   strokeWidth?: number
+  locked?: boolean
 }
